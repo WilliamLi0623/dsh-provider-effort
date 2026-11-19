@@ -1,5 +1,7 @@
 # @local/dsh-provider-effort
 
+简体中文 | [繁體中文](README.zh-Hant.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [English](README.en.md)
+
 为 DSH 的第三方 provider（`@deepseek-ai/dsh-llm-pi-ai` 路由）自动注入 reasoning effort：能力（模型可选级别）与默认级别（请求自动携带）。
 
 ## 安装
