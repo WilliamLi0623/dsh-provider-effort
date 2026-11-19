@@ -12,6 +12,10 @@
  *    level, the route-level `reasoning` default is written. DSH's LLM runtime
  *    then materializes it (`requested ?? reasoning.defaultEffort`) into every
  *    request that omits an effort, and the pi-ai adapter puts it on the wire.
+ * 3. Per-model defaults — `routes.<route>.effortByModel` names a level per
+ *    model id; the runtime's model metadata is taught to advertise it as that
+ *    model's `defaultEffort`, so requests that omit an effort materialize it
+ *    on every resolution path while explicit request efforts still win.
  *
  * Writes are missing-only, revision-fenced, idempotent, and persisted through
  * the active profile patch, so they survive restarts and stay visible in the
@@ -48,6 +52,13 @@ export const Config = z.object({
     force: z.boolean(),
     /** Never set the route default for this route (capability injection still applies). */
     routeDefault: z.boolean(),
+    /**
+     * Per-model default effort keyed by model id: when a request to this
+     * route names the model and omits an effort, the runtime materializes
+     * this level instead of the route default. An explicit request effort
+     * still wins; the level must be among the model's selectable efforts.
+     */
+    effortByModel: z.dict(Level),
   })).default({}).volatile(),
 })
 
@@ -55,6 +66,13 @@ export const Config = z.object({
 function read(value) {
   return value !== null && typeof value === 'object' && typeof value.get === 'function' ? value.get() : value
 }
+
+/**
+ * The plugin instance whose configuration the runtime metadata patch reads.
+ * Module-level because the prototype patch outlives a single plugin
+ * activation: a restarted instance re-points it at its own configuration.
+ */
+const activeRawConfig = { raw: undefined }
 
 /** Build the capability map injected into model entries: `off` → null, level → level. */
 function effortsMap(levels) {
@@ -69,6 +87,30 @@ function supportsLevel(map, requested) {
   if (map === undefined || map === null || map === false) return false
   const wire = map[requested]
   return typeof wire === 'string' && wire.length > 0
+}
+
+/**
+ * Live plugin configuration as plain values, re-read on every access so
+ * volatile edits take effect without a restart.
+ */
+function liveConfig(rawConfig) {
+  return {
+    effort: read(rawConfig.effort) ?? 'medium',
+    levels: read(rawConfig.levels) ?? ['off', 'minimal', 'low', 'medium', 'high'],
+    namespace: read(rawConfig.namespace) ?? 'llm-pi-ai',
+    skip: read(rawConfig.skip) ?? [],
+    routes: read(rawConfig.routes) ?? {},
+  }
+}
+
+/** The per-model effort one route/model pair resolves to, or undefined. */
+function perModelEffort(config, provider, model) {
+  const rawRouteCfg = config.routes[provider]
+  if (rawRouteCfg === undefined || rawRouteCfg === null || typeof rawRouteCfg !== 'object') return undefined
+  const byModel = rawRouteCfg.effortByModel
+  if (byModel === undefined || byModel === null || typeof byModel !== 'object') return undefined
+  const level = byModel[model]
+  return LEVELS.includes(level) ? level : undefined
 }
 
 /**
@@ -98,27 +140,80 @@ export function apply(ctx, rawConfig) {
       if (timer !== undefined) clearTimeout(timer)
     })
     // Any settings or adapter change can move the target state; the reconcile
-    // diff is what keeps this from looping on the plugin's own writes.
+    // diff is what keeps this from looping on the plugin's own writes. A
+    // re-assert also restores the per-model metadata patch if the LLM runtime
+    // module was reloaded under it.
     child.on('settings/document-updated', schedule)
     child.on('llm/adapters-updated', schedule)
     // The initial pass runs without the debounce so the first request of a
-    // boot already sees the injected configuration.
-    chain = chain.then(() => runReconcile()).catch((error) => {
-      logger.warn('provider-effort: initial reconciliation failed: ' + describe(error))
-    })
+    // boot already sees the injected configuration and per-model metadata.
+    chain = chain
+      .then(() => installPerModelDefaults(child))
+      .then(() => runReconcile())
+      .catch((error) => {
+        logger.warn('provider-effort: initial reconciliation failed: ' + describe(error))
+      })
+
+    /**
+     * Teach the LLM runtime to advertise per-model default efforts.
+     *
+     * DSH resolves every request's effort as `requested ?? model.defaultEffort`,
+     * validates it against the model's selectable efforts, marks the
+     * materialization as adapter-supplied (so session selections re-resolve it
+     * instead of pinning it), and merges it into dispatch on every path —
+     * prepared calls, direct streams, and standalone resolution. The adapter
+     * derives `defaultEffort` from the route-level `reasoning` only, so
+     * per-model defaults arrive by wrapping the runtime's model-metadata
+     * normalization on the class prototype: a guarded, idempotent patch that
+     * replaces the advertised default when this plugin's configuration names
+     * one for the exact provider/model pair and the model supports it.
+     * Explicit request efforts always win. If the runtime's internals change,
+     * the patch refuses to install and the feature degrades to a logged no-op.
+     */
+    let perModelAvailable = true
+    function installPerModelDefaults() {
+      if (!perModelAvailable) return
+      try {
+        activeRawConfig.raw = rawConfig
+        const proto = Object.getPrototypeOf(child.llm)
+        if (proto === null || typeof proto !== 'object' || !Object.hasOwn(proto, 'normalizeModelInfo')
+          || typeof proto.normalizeModelInfo !== 'function') {
+          perModelAvailable = false
+          logger.warn('provider-effort: runtime model-metadata seam not found; per-model efforts stay off')
+          return
+        }
+        if (proto.normalizeModelInfo.__providerEffortPatched === true) return
+        const original = proto.normalizeModelInfo
+        const patched = function normalizeModelInfo(registration, model, resolved) {
+          const info = original.call(this, registration, model, resolved)
+          try {
+            const config = liveConfig(activeRawConfig.raw)
+            const level = perModelEffort(config, info.provider, info.id)
+            if (level !== undefined && info.reasoning !== undefined && Array.isArray(info.reasoning.efforts)) {
+              const match = info.reasoning.efforts.find((effort) => effort !== undefined && effort.id === level)
+              if (match !== undefined) {
+                info.reasoning = { ...info.reasoning, defaultEffort: match.id }
+              }
+            }
+          } catch { /* metadata advertising must never fail a resolution */ }
+          return info
+        }
+        patched.__providerEffortPatched = true
+        proto.normalizeModelInfo = patched
+        logger.info('provider-effort: per-model default efforts active on the LLM runtime')
+      } catch (error) {
+        perModelAvailable = false
+        logger.warn('provider-effort: per-model default efforts unavailable: ' + describe(error))
+      }
+    }
 
     function describe(error) {
       return error instanceof Error ? error.message : String(error)
     }
 
     async function runReconcile() {
-      const config = {
-        effort: read(rawConfig.effort) ?? 'medium',
-        levels: read(rawConfig.levels) ?? ['off', 'minimal', 'low', 'medium', 'high'],
-        namespace: read(rawConfig.namespace) ?? 'llm-pi-ai',
-        skip: read(rawConfig.skip) ?? [],
-        routes: read(rawConfig.routes) ?? {},
-      }
+      installPerModelDefaults(child)
+      const config = liveConfig(rawConfig)
 
       // 1. Locate the target namespace and its live plus override sections.
       let descriptor
@@ -183,6 +278,19 @@ export function apply(ctx, rawConfig) {
           ? routeCfg.levels
           : config.levels
         const capability = effortsMap(routeLevels)
+
+        // Config hygiene: a per-model level outside the offered capability
+        // map can never materialize (the runtime rejects unknown defaults),
+        // so point the configuration at the offered list.
+        if (routeCfg.effortByModel !== undefined && routeCfg.effortByModel !== null
+          && typeof routeCfg.effortByModel === 'object') {
+          for (const [modelId, level] of Object.entries(routeCfg.effortByModel)) {
+            if (LEVELS.includes(level) && routeLevels.includes(level) === false) {
+              logger.warn('provider-effort: route "' + route + '" model "' + modelId + '" default "' + level
+                + '" is not in the offered levels; add it to levels or routes.' + route + '.levels')
+            }
+          }
+        }
 
         const effProfile = section(effectiveProviders[route])
         const ovrProfile = overrideProviders[route] !== null && typeof overrideProviders[route] === 'object'

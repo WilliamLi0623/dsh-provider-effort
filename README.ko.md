@@ -48,7 +48,9 @@ dsh plugin --profile <name> add <생성된 .tgz 경로>
 | `levels` | `off, minimal, low, medium, high` | 주입할 `reasoningEfforts` 레벨 맵 |
 | `namespace` | `llm-pi-ai` | 대상 어댑터의 settings 네임스페이스 |
 | `skip` | `[]` | 완전히 건너뛸 라우트 이름 목록 |
-| `routes` | `{}` | 라우트별 재정의: `effort` / `levels` / `skip` / `force` / `routeDefault: false` |
+| `routes` | `{}` | 라우트별 재정의: `effort` / `levels` / `skip` / `force` / `routeDefault: false` / `effortByModel` |
+
+**모델별 기본 effort** (`routes.<route>.effortByModel`): 모델 id를 키로 각 모델의 기본 레벨을 지정합니다. 예: openai 라우트에서 `gpt-5.1 → high`, `gpt-5-mini → low`. 플러그인은 DSH의 LLM 런타임에 해당 레벨을 모델의 `defaultEffort`로 광고하게 합니다 — effort를 생략한 요청은 모든 해석 경로(prepared call / 직접 stream / 독립 해석)에서 실체화되고, UI의 모델 메타데이터에도 표시되며, 어댑터 기본값으로 표시되어 세션 선택이 고정하지 않고 매번 다시 해석합니다. **우선순위: 요청의 명시적 effort > 모델별 > 라우트 수준 `reasoning` > 프로바이더 기본.** 지정 레벨은 모델의 선택 가능 레벨에 포함되어야 합니다(수동 선언 라우트는 주입된 기능 맵이 보장. `levels` 목록에 없는 레벨은 경고가 기록됩니다).
 
 ## 검증
 

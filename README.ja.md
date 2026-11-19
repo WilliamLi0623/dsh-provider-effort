@@ -48,7 +48,9 @@ dsh plugin --profile <name> add <生成された .tgz のパス>
 | `levels` | `off, minimal, low, medium, high` | 注入する `reasoningEfforts` のレベルマップ |
 | `namespace` | `llm-pi-ai` | 対象アダプターの settings 名前空間 |
 | `skip` | `[]` | 完全にスキップするルート名のリスト |
-| `routes` | `{}` | ルート単位の上書き：`effort` / `levels` / `skip` / `force` / `routeDefault: false` |
+| `routes` | `{}` | ルート単位の上書き：`effort` / `levels` / `skip` / `force` / `routeDefault: false` / `effortByModel` |
+
+**モデル別デフォルト effort**（`routes.<route>.effortByModel`）：モデル id をキーにそれぞれのデフォルトレベルを指定します。例：openai ルートで `gpt-5.1 → high`、`gpt-5-mini → low`。プラグインは DSH の LLM ランタイムに、そのレベルをモデルの `defaultEffort` として広告させます——effort を省略したリクエストはすべての解決パス（prepared call / 直接 stream / 単独解決）で実体化され、UI のモデルメタデータにも表示され、アダプターデフォルトとして扱われます（セッション選択は固定せず毎回再解決）。**優先順位：リクエストの明示的 effort > モデル別 > ルートレベルの `reasoning` > プロバイダー本来の挙動。** 指定レベルはモデルの選択可能レベルに含まれる必要があります（手動定義ルートは注入された能力マップで担保。`levels` に無いレベルは警告を記録します）。
 
 ## 検証
 

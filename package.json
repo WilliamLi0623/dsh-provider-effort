@@ -1,7 +1,7 @@
 {
   "name": "@local/dsh-provider-effort",
   "description": "Automatically adds reasoning effort capability and defaults to DSH third-party (pi-ai) provider routes",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -27,3 +27,4 @@
     }
   }
 }
+

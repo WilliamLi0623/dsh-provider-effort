@@ -48,7 +48,9 @@ dsh plugin --profile <name> add <path to the .tgz>
 | `levels` | `off, minimal, low, medium, high` | The `reasoningEfforts` level map injected into models |
 | `namespace` | `llm-pi-ai` | The target adapter's settings namespace |
 | `skip` | `[]` | Route names to leave completely untouched |
-| `routes` | `{}` | Per-route overrides: `effort` / `levels` / `skip` / `force` / `routeDefault: false` |
+| `routes` | `{}` | Per-route overrides: `effort` / `levels` / `skip` / `force` / `routeDefault: false` / `effortByModel` |
+
+**Per-model default efforts** (`routes.<route>.effortByModel`): a map from model id to that model's own default level — e.g. on the openai route, `gpt-5.1 → high`, `gpt-5-mini → low`. The plugin teaches DSH's LLM runtime to advertise the level as the model's `defaultEffort` in its model metadata, so requests that omit an effort materialize it on every resolution path (prepared calls, direct streams, standalone resolution), model pickers show it, and it is marked adapter-supplied (session selections re-resolve it instead of pinning it). **Precedence: explicit request effort > per-model > route-level `reasoning` > provider native.** The configured level must be among the model's selectable efforts (hand-declared routes get it through the injected capability map; a level missing from the `levels` list logs a warning).
 
 ## Verify
 

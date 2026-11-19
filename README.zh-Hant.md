@@ -48,7 +48,9 @@ dsh plugin --profile <name> add <產生的 .tgz 路徑>
 | `levels` | `off, minimal, low, medium, high` | 注入的 `reasoningEfforts` 層級表 |
 | `namespace` | `llm-pi-ai` | 目標轉接器的 settings 命名空間 |
 | `skip` | `[]` | 完全跳過的路由名稱清單 |
-| `routes` | `{}` | 按路由覆寫：`effort` / `levels` / `skip` / `force` / `routeDefault: false` |
+| `routes` | `{}` | 按路由覆寫：`effort` / `levels` / `skip` / `force` / `routeDefault: false` / `effortByModel` |
+
+**按模型指定預設 effort**（`routes.<route>.effortByModel`）：以模型 id 為鍵指定各自的預設層級，例如 openai 路由上 `gpt-5.1 → high`、`gpt-5-mini → low`。外掛讓 runtime 把該層級作為模型的 `defaultEffort` 對外公佈——省略 effort 的請求在每個解析路徑（prepared call / 直接 stream / 獨立解析）上自動物化，UI 的模型中繼資料也顯示它，且被標記為 adapter 預設（會話選擇不固定它，每次重新解析）。**優先級：請求顯式 effort > per-model > 路由層級 `reasoning` > provider 原生。** 設定的層級必須在模型可選層級裡（手寫路由由注入的能力表保證；層級不在 `levels` 表時會記錄警告）。
 
 ## 驗證
 
