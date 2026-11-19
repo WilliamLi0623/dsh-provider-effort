@@ -1,0 +1,17 @@
+# Mount the provider-effort Host plugin into the active profile.
+# The plugin needs the `llm` and `settings` services (both ship with the base
+# bundle); it idles harmlessly when they are absent.
+- insert:
+    - id: provider-effort
+      name: '@local/dsh-provider-effort'
+      config:
+        effort: medium
+        levels:
+          - off
+          - minimal
+          - low
+          - medium
+          - high
+        namespace: llm-pi-ai
+        skip: []
+        routes: {}

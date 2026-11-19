@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Provider effort injector",
+    "description": "Automatically adds reasoning effort capability and a default effort to third-party (pi-ai) provider routes, so gateway and catalog models can think without manual per-provider edits.",
+    "detail": "docs/DETAIL.md"
+  }
+}

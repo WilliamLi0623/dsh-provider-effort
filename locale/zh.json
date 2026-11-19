@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "第三方 Provider Effort 注入",
+    "description": "自动为第三方（pi-ai）provider 路由补齐推理 effort 能力与默认级别，让网关与目录模型无需手动逐个配置即可思考。",
+    "detail": "docs/DETAIL.md"
+  }
+}
