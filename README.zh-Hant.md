@@ -24,6 +24,15 @@ plugin_manager action: install_bundle, target: <本目錄絕對路徑>
 
 安裝後對所有會話生效，重新啟動後依然生效（寫入經由 profile patch 持久保存）。
 
+### 本機開發提示
+
+`dsh plugin --profile <name> add <本機目錄>` 以 pnpm `link:` 方式安裝：**不安裝外掛的傳遞依賴**（如 `@deepseek-ai/schemastery`），且 Node 按符號連結的真實路徑解析，外掛會載入失敗。本機開發請改用 tarball（與 GitHub/registry 安裝行為一致）：
+
+```sh
+npm pack   # 在外掛目錄內執行，產生 local-dsh-provider-effort-1.0.0.tgz
+dsh plugin --profile <name> add <產生的 .tgz 路徑>
+```
+
 ## 做了什麼
 
 - **能力注入**：手寫閘道路由 `models` 清單中缺 `reasoningEfforts` 的模型條目會被注入層級表（`off` + 設定的層級），此後模型可選 effort、UI 顯示層級、驗證可通過。

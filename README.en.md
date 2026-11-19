@@ -24,6 +24,15 @@ plugin_manager action: install_bundle, target: <absolute path to this directory>
 
 Once installed it applies to every session and survives restarts (writes persist through the profile patch).
 
+### Local development note
+
+`dsh plugin --profile <name> add <local directory>` installs via a pnpm `link:` dependency: **the plugin's transitive dependencies are not installed** (such as `@deepseek-ai/schemastery`), and Node resolves imports through the symlink's real path, so the plugin fails to load. For local development install from a tarball instead (identical to GitHub/registry installs):
+
+```sh
+npm pack   # run inside the plugin directory; produces local-dsh-provider-effort-1.0.0.tgz
+dsh plugin --profile <name> add <path to the .tgz>
+```
+
 ## What it does
 
 - **Capability injection**: model entries in the stored `models` list of hand-declared gateway routes that lack `reasoningEfforts` receive an injected level map (`off` plus the configured levels). From then on the model offers an effort choice, the UI shows the levels, and validation passes.

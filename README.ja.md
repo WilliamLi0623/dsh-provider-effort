@@ -24,6 +24,15 @@ plugin_manager action: install_bundle, target: <このディレクトリの絶�
 
 インストール後はすべてのセッションに適用され、再起動後も有効です（書き込みは profile patch で永続化されます）。
 
+### ローカル開発の注意
+
+`dsh plugin --profile <name> add <ローカルディレクトリ>` は pnpm の `link:` でインストールされます：**プラグインの推移依存はインストールされません**（例：`@deepseek-ai/schemastery`）。さらに Node はシンボリックリンクの実パスから解決するため、プラグインの読み込みに失敗します。ローカル開発では tarball からのインストールを使用してください（GitHub/registry からのインストールと同一の挙動）：
+
+```sh
+npm pack   # プラグインディレクトリ内で実行。local-dsh-provider-effort-1.0.0.tgz が生成されます
+dsh plugin --profile <name> add <生成された .tgz のパス>
+```
+
 ## 何をするか
 
 - **能力の注入**：手動定義したゲートウェイルートの `models` リストのうち、`reasoningEfforts` を持たないモデルエントリにレベルマップ（`off` + 設定したレベル）を注入します。以降、モデルで effort を選択でき、UI にレベルが表示され、バリデーションも通ります。

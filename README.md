@@ -24,6 +24,15 @@ plugin_manager action: install_bundle, target: <本目录绝对路径>
 
 安装后生效于所有会话，重启后依然生效（写入走 profile patch 持久化）。
 
+### 本地开发提示
+
+`dsh plugin --profile <name> add <本地目录>` 以 pnpm `link:` 方式安装：**不安装插件的传递依赖**（如 `@deepseek-ai/schemastery`），且 Node 按符号链接的真实路径解析，插件会加载失败。本地开发请改用 tarball（与 GitHub/registry 安装行为一致）：
+
+```sh
+npm pack   # 在插件目录内执行，生成 local-dsh-provider-effort-1.0.0.tgz
+dsh plugin --profile <name> add <生成的 .tgz 路径>
+```
+
 ## 做了什么
 
 - **能力注入**：手写网关路由 `models` 列表中缺 `reasoningEfforts` 的模型条目被注入级别表（`off` + 配置的级别），此后模型可选 effort、UI 显示级别、校验可通过。

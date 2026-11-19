@@ -24,6 +24,15 @@ plugin_manager action: install_bundle, target: <이 디렉터리의 절대 경�
 
 설치 후 모든 세션에 적용되며, 재시작 후에도 유지됩니다(기록은 profile patch로 영속화됩니다).
 
+### 로컬 개발 참고
+
+`dsh plugin --profile <name> add <로컬 디렉터리>`는 pnpm `link:` 방식으로 설치합니다: **플러그인의 전이 의존성이 설치되지 않습니다**(예: `@deepseek-ai/schemastery`). 또한 Node가 심볼릭 링크의 실제 경로에서 해석하기 때문에 플러그인 로드가 실패합니다. 로컬 개발에서는 tarball 설치를 사용하세요(GitHub/registry 설치와 동일한 동작):
+
+```sh
+npm pack   # 플러그인 디렉터리에서 실행. local-dsh-provider-effort-1.0.0.tgz 생성
+dsh plugin --profile <name> add <생성된 .tgz 경로>
+```
+
 ## 하는 일
 
 - **기능 주입**: 수동으로 선언한 게이트웨이 라우트의 `models` 목록에서 `reasoningEfforts`가 없는 모델 항목에 레벨 맵(`off` + 설정된 레벨)을 주입합니다. 이후 모델에서 effort를 선택할 수 있고, UI에 레벨이 표시되며, 유효성 검사를 통과합니다.
