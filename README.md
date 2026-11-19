@@ -35,7 +35,7 @@ dsh plugin --profile <name> add <生成的 .tgz 路径>
 
 ## 做了什么
 
-- **能力注入**：手写网关路由 `models` 列表中缺 `reasoningEfforts` 的模型条目被注入级别表（`off` + 配置的级别），此后模型可选 effort、UI 显示级别、校验可通过。
+- **能力注入**：手写网关路由 `models` 列表中缺 `reasoningEfforts` 的模型条目被注入级别表（`off` + 配置的级别），此后模型可选 effort、UI 显示级别、校验可通过。被收窄的目录路由保持模型的原生目录能力（注入的级别表会整体替换目录的线上拼写，故不注入）；其路由默认值仍经运行时验证后生效。
 - **默认级别**：当路由的所有模型都支持所选级别时，写入路由级 `reasoning` 默认值。此后所有未显式指定 effort 的请求自动携带（runtime `requested ?? reasoning.defaultEffort` 物化），OpenAI 兼容网关线上表现为 `reasoning_effort`。
 - **安全**：混合能力路由（部分模型不支持该级别）不设路由默认值，避免非推理模型报 `UNSUPPORTED_REASONING_EFFORT`；可用 `routes.<route>.force: true` 强制。DeepSeek 官方路由不动。
 - **幂等自愈**：只补缺失字段；Models 页删掉注入字段会自动补回；不拦截/改写任何模型请求。

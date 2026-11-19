@@ -8,7 +8,7 @@ DSH's pi-ai adapter already owns the effort pipeline: a route profile field `rea
 
 This plugin closes that gap at configuration level. On startup and on every relevant configuration change it reconciles the `llm-pi-ai` settings namespace:
 
-1. **Capability injection** — for routes whose stored profile carries a `models` list, any model entry without `reasoningEfforts` gets one injected (`off` plus the configured levels). Models already declaring `reasoningEfforts` (including `false`) are left untouched.
+1. **Capability injection** — on hand-declared gateway routes, any `models` entry without `reasoningEfforts` gets one injected (`off` plus the configured levels). Declared maps (including `false`) are never rewritten. Narrowed catalog routes keep their models' installed-catalog capability, because a declared map would replace the catalog's wire spellings; their route default still applies once runtime verification confirms every model supports the level.
 2. **Route default** — when every model of a route supports the configured effort level, the plugin writes the route-level `reasoning` default. From then on, every request that omits an effort automatically carries the level; the wire parameter follows the protocol (`reasoning_effort` on OpenAI-compatible endpoints, thinking budgets on Anthropic, thinking config on Gemini).
 3. **Safety first** — routes where some models cannot take the level (for example a mixed OpenAI catalog with `gpt-5`-style and `gpt-4.1`-style models) keep no route default, so non-reasoning models never fail with `UNSUPPORTED_REASONING_EFFORT`. Per-route overrides can force the default when you know every model on the route thinks.
 

@@ -16,7 +16,7 @@
     "locale/*.json",
     "docs",
     "icon.svg",
-    "README.md"
+    "README*.md"
   ],
   "dependencies": {
     "@deepseek-ai/schemastery": "~3.19.0"

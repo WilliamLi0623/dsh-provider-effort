@@ -35,7 +35,7 @@ dsh plugin --profile <name> add <path to the .tgz>
 
 ## What it does
 
-- **Capability injection**: model entries in the stored `models` list of hand-declared gateway routes that lack `reasoningEfforts` receive an injected level map (`off` plus the configured levels). From then on the model offers an effort choice, the UI shows the levels, and validation passes.
+- **Capability injection**: model entries in the stored `models` list of hand-declared gateway routes that lack `reasoningEfforts` receive an injected level map (`off` plus the configured levels). From then on the model offers an effort choice, the UI shows the levels, and validation passes. Narrowed catalog routes keep their models' installed-catalog capability, because a declared map would replace the catalog's wire spellings; their route default still applies once runtime verification confirms every model supports the level.
 - **Route default**: when every model of a route supports the selected level, the route-level `reasoning` default is written. From then on every request that omits an effort carries it automatically (materialized by the runtime's `requested ?? reasoning.defaultEffort`); OpenAI-compatible gateways see `reasoning_effort` on the wire.
 - **Safety**: mixed-capability routes (where some models cannot take the level) get no route default, so non-reasoning models never fail with `UNSUPPORTED_REASONING_EFFORT`. Force it with `routes.<route>.force: true`. DeepSeek's first-party routes are never touched.
 - **Idempotent self-healing**: only missing fields are filled. Deleting an injected field on the Models page brings it back automatically, and no model request is ever intercepted or rewritten.

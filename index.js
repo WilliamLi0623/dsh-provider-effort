@@ -101,7 +101,11 @@ export function apply(ctx, rawConfig) {
     // diff is what keeps this from looping on the plugin's own writes.
     child.on('settings/document-updated', schedule)
     child.on('llm/adapters-updated', schedule)
-    schedule()
+    // The initial pass runs without the debounce so the first request of a
+    // boot already sees the injected configuration.
+    chain = chain.then(() => runReconcile()).catch((error) => {
+      logger.warn('provider-effort: initial reconciliation failed: ' + describe(error))
+    })
 
     function describe(error) {
       return error instanceof Error ? error.message : String(error)
@@ -147,19 +151,23 @@ export function apply(ctx, rawConfig) {
       } catch (error) {
         logger.warn('provider-effort: registered-route listing unavailable: ' + describe(error))
       }
-      const targets = new Set()
+      const targets = new Map()
       for (const entry of directory) {
-        if (entry.settingsNs === config.namespace) targets.add(entry.provider)
+        if (entry.settingsNs === config.namespace) targets.set(entry.provider, entry)
       }
-      for (const route of Object.keys(effectiveProviders)) targets.add(route)
-      for (const route of Object.keys(overrideProviders)) targets.add(route)
+      for (const route of Object.keys(effectiveProviders)) {
+        if (!targets.has(route)) targets.set(route, undefined)
+      }
+      for (const route of Object.keys(overrideProviders)) {
+        if (!targets.has(route)) targets.set(route, undefined)
+      }
 
       const ops = []
       const injected = []
       const defaults = []
       const skipped = []
 
-      for (const route of targets) {
+      for (const [route, directoryEntry] of targets) {
         const rawRouteCfg = section(config.routes)[route]
         const routeCfg = rawRouteCfg !== null && typeof rawRouteCfg === 'object' ? rawRouteCfg : {}
         if (routeCfg.skip === true || config.skip.includes(route)) {
@@ -182,11 +190,16 @@ export function apply(ctx, rawConfig) {
           : undefined
         const ovrModels = Array.isArray(ovrProfile?.models) ? ovrProfile.models : undefined
 
-        // A. Capability injection — only into model entries the override layer
-        //    actually stores, so path ops address a real array. Declared maps
-        //    (including `false`) are respected and never rewritten.
+        // A. Capability injection — only on hand-declared routes
+        //    (`declared === true`), and only into model entries the override
+        //    layer actually stores, so path ops address a real array. A
+        //    narrowed catalog route keeps its models' installed-catalog
+        //    capability — including the catalog's wire spellings — because a
+        //    declared `reasoningEfforts` dict would REPLACE that map. Declared
+        //    maps (including `false`) are always respected and never rewritten.
         let postInjectionSupport = null
-        if (ovrModels !== undefined) {
+        const handDeclared = directoryEntry !== undefined && directoryEntry.declared === true
+        if (handDeclared && ovrModels !== undefined) {
           if (ovrModels.length === 0) {
             skipped.push(route + ': stored route declares no models')
           } else {
